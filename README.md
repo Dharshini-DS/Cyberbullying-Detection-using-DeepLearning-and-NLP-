@@ -44,9 +44,10 @@ The project focuses on creating a robust system capable of detecting cyberbullyi
 ![31aeea10-355d-4563-bfee-ae0ce4fb549c](https://github.com/user-attachments/assets/577364db-13c8-4712-8568-58a1a2e7a035)
 
 ### Confusion Matrix:
-![CLSTM](https://github.com/user-attachments/assets/8adcdde0-d0ee-4248-b31e-a001ab78d476)
+
 ![CNN](https://github.com/user-attachments/assets/3ba36db7-3614-4059-b123-f27e4edab6eb)
 ![RNN](https://github.com/user-attachments/assets/5714f000-e71a-475a-b6c3-7128141a7e2a)
+![CLSTM](https://github.com/user-attachments/assets/8adcdde0-d0ee-4248-b31e-a001ab78d476)
 ![CGRU](https://github.com/user-attachments/assets/fe919b30-0441-496d-927a-98f6a9fe6a14)
 
 
