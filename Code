@@ -1,0 +1,185 @@
+# Import Libraries
+import pandas as pd
+import numpy as np
+import re
+import nltk
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import classification_report, accuracy_score
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout, Embedding, LSTM, GRU, Conv1D, MaxPooling1D, Flatten
+from transformers import DistilBertTokenizer, TFDistilBertModel
+
+# Ensure you have the necessary NLTK resources
+nltk.download('punkt')
+nltk.download('stopwords')
+from nltk.corpus import stopwords
+
+# Load dataset
+data = pd.read_csv('cyberbullying_data.csv') 
+
+# Data preprocessing function
+def preprocess_text(text):
+    text = re.sub(r'http\S+|www\S+|https\S+', '', text, flags=re.MULTILINE) 
+    text = re.sub(r'\@\w+|\#', '', text)  
+    text = text.lower() 
+    text = re.sub(r'\d+', '', text)  
+    text = ' '.join([word for word in text.split() if word not in stopwords.words('english')]) 
+    return text
+
+data['cleaned_text'] = data['full_text'].apply(preprocess_text)
+
+# Encode labels
+label_encoder = LabelEncoder()
+data['label'] = label_encoder.fit_transform(data['label'])
+X = data['cleaned_text']
+y = data['label']
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Prepare data for neural network models
+max_words = 10000
+max_len = 100
+tokenizer = tf.keras.preprocessing.text.Tokenizer(num_words=max_words)
+tokenizer.fit_on_texts(X_train)
+X_train_seq = tokenizer.texts_to_sequences(X_train)
+X_test_seq = tokenizer.texts_to_sequences(X_test)
+X_train_pad = tf.keras.preprocessing.sequence.pad_sequences(X_train_seq, padding='post', maxlen=max_len)
+X_test_pad = tf.keras.preprocessing.sequence.pad_sequences(X_test_seq, padding='post', maxlen=max_len)
+
+# Store results for visualization
+results = {}
+
+# Function to evaluate models
+def evaluate_model(model, model_name):
+    print(f"Evaluating {model_name}...")
+    start_time = time()
+    predictions = np.argmax(model.predict(X_test_pad), axis=1)
+    end_time = time()
+    accuracy = accuracy_score(y_test, predictions)
+    report = classification_report(y_test, predictions, target_names=label_encoder.classes_, zero_division=0)
+    cm = confusion_matrix(y_test, predictions)
+
+    print(f"\n{model_name} Classification Report:\n", report)
+    print(f"\n{model_name} Confusion Matrix:\n", cm)
+
+    results[model_name] = {
+        'accuracy': accuracy,
+        'classification_report': report,
+        'confusion_matrix': cm,
+        'inference_time': end_time - start_time
+    }
+    return accuracy, cm
+
+# Model 1: RNN (LSTM)
+def create_rnn_model():
+    model = Sequential()
+    model.add(Embedding(input_dim=max_words, output_dim=128, input_length=max_len))
+    model.add(LSTM(64))
+    model.add(Dropout(0.5))
+    model.add(Dense(32, activation='relu'))
+    model.add(Dense(len(np.unique(y)), activation='softmax'))
+    model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+    return model
+
+rnn_model = create_rnn_model()
+rnn_history = rnn_model.fit(X_train_pad, y_train, epochs=10, batch_size=32, validation_split=0.2, verbose=1)
+rnn_accuracy, rnn_cm = evaluate_model(rnn_model, 'RNN (LSTM)')
+
+
+# Model 2: CNN
+def create_cnn_model():
+    model = Sequential()
+    model.add(Embedding(input_dim=max_words, output_dim=128, input_length=max_len))
+    model.add(Conv1D(filters=64, kernel_size=5, activation='relu'))
+    model.add(MaxPooling1D(pool_size=2))
+    model.add(Flatten())
+    model.add(Dense(32, activation='relu'))
+    model.add(Dense(len(np.unique(y)), activation='softmax'))
+    model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+    return model
+
+cnn_model = create_cnn_model()
+cnn_history = cnn_model.fit(X_train_pad, y_train, epochs=10, batch_size=32, validation_split=0.2, verbose=1)
+cnn_accuracy, cnn_cm = evaluate_model(cnn_model, 'CNN')
+
+# Model 3: CNN + LSTM
+def create_cnn_lstm_model():
+    model = Sequential()
+    model.add(Embedding(input_dim=max_words, output_dim=128, input_length=max_len))
+    model.add(Conv1D(filters=64, kernel_size=5, activation='relu'))
+    model.add(MaxPooling1D(pool_size=2))
+    model.add(LSTM(64))
+    model.add(Dropout(0.5))
+    model.add(Dense(32, activation='relu'))
+    model.add(Dense(len(np.unique(y)), activation='softmax'))
+    model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+    return model
+
+cnn_lstm_model = create_cnn_lstm_model()
+cnn_lstm_history = cnn_lstm_model.fit(X_train_pad, y_train, epochs=10, batch_size=32, validation_split=0.2, verbose=1)
+cnn_lstm_accuracy, cnn_lstm_cm = evaluate_model(cnn_lstm_model, 'CNN + LSTM')
+
+# Model 4: CNN + GRU
+def create_cnn_gru_model():
+    model = Sequential()
+    model.add(Embedding(input_dim=max_words, output_dim=128, input_length=max_len))
+    model.add(Conv1D(filters=64, kernel_size=5, activation='relu'))
+    model.add(MaxPooling1D(pool_size=2))
+    model.add(GRU(64))
+    model.add(Dropout(0.5))
+    model.add(Dense(32, activation='relu'))
+    model.add(Dense(len(np.unique(y)), activation='softmax'))
+    model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+    return model
+
+cnn_gru_model = create_cnn_gru_model()
+cnn_gru_history = cnn_gru_model.fit(X_train_pad, y_train, epochs=10, batch_size=32, validation_split=0.2, verbose=1)
+cnn_gru_accuracy, cnn_gru_cm = evaluate_model(cnn_gru_model, 'CNN + GRU')
+
+# Plot accuracy comparison
+model_names = ['RNN (LSTM)', 'CNN', 'CNN + LSTM', 'CNN + GRU']
+accuracies = [results[name]['accuracy'] for name in model_names]
+
+plt.figure(figsize=(10, 6))
+plt.bar(model_names, accuracies, color='steelblue')
+plt.ylabel('Accuracy')  # Label for the y-axis
+plt.xlabel('Models')  # Label for the x-axis
+plt.title('Model Accuracy Comparison')  # Chart title
+plt.ylim(0, 1)  # Ensure the y-axis range is from 0 to 1
+
+# Add accuracy values on top of the bars
+for i, accuracy in enumerate(accuracies):
+    plt.text(i, accuracy + 0.01, f"{accuracy:.2f}", ha='center', fontsize=12)
+
+plt.show()
+
+# Plot confusion matrix for each model
+for model_name in model_names:
+    cm = results[model_name]['confusion_matrix']
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=label_encoder.classes_, yticklabels=label_encoder.classes_)
+    plt.title(f'Confusion Matrix: {model_name}')
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.show()
+
+# Print training and inference times
+print("\nTraining and Inference Times:")
+for model_name in model_names:
+    print(f"{model_name}: Inference Time = {results[model_name]['inference_time']:.4f} seconds")
+
+# Summarize results in a table
+summary = pd.DataFrame({
+    'Model': model_names,
+    'Accuracy': accuracies,
+    'Inference Time (s)': [results[name]['inference_time'] for name in model_names]
+})
+print("\nModel Performance Summary:")
+print(summary)
+
+# Save results to CSV
+summary.to_csv('model_performance_summary.csv')
